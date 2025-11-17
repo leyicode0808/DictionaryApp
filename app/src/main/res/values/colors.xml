@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="black">#FF000000</color>
+    <color name="white">#FFFFFFFF</color>
+    <!--chapter03新增-->
+    <color name="green">#25F054</color>
+    <color name="purple">#6339C1</color>
+    <color name="btn_color_1">#1F4BBA</color>
+    <color name="btn_color_0">#592355D0</color>
+
+</resources>
