@@ -32,9 +32,20 @@
 
     </LinearLayout>
 
+    <!-- 新增中间内容区域（空布局保留，不影响结构） -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center_horizontal"
+        android:layout_marginTop="30dp">
+
+    </LinearLayout>
+
+    <!-- 调整Space高度，让下方内容整体下移 -->
     <Space
         android:layout_width="match_parent"
-        android:layout_height="0dp"
+        android:layout_height="220dp"
         android:layout_weight="1" />
 
     <Button
@@ -42,11 +53,36 @@
         android:layout_width="200dp"
         android:layout_height="50dp"
         android:layout_gravity="center_horizontal"
-        android:text="进入词典"
-        android:textSize="18sp"
-        android:textColor="#FFFFFF"
         android:background="@drawable/shape_btn_rounded"
+        android:clickable="true"
         android:elevation="4dp"
+        android:focusable="true"
+        android:text="进入词典"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp" />
+
+    <!-- 词库来源链接：可点击跳转、文字缩小为14sp、增加marginTop下移 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="词库来源：https://github.com/LinXueyuanStdio/DictionaryData"
+        android:textColor="#666666"
+        android:textSize="12sp"
+        android:layout_marginTop="30dp"
+        android:autoLink="web"
+        android:clickable="true"
+        android:focusable="true" />
+
+    <!-- APP链接：可点击跳转、文字缩小为14sp、增加marginTop和marginBottom下移 -->
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="此APP链接：https://github.com/leyicode0808/DictionaryApp"
+        android:textColor="#666666"
+        android:textSize="12sp"
+        android:layout_marginTop="8dp"
+        android:layout_marginBottom="0dp"
+        android:autoLink="web"
         android:clickable="true"
         android:focusable="true" />
 
@@ -57,7 +93,7 @@
         android:textSize="14sp"
         android:textColor="#999999"
         android:layout_gravity="end"
-        android:layout_marginTop="30dp"
+        android:layout_marginTop="5dp"
         android:layout_marginBottom="20dp" />
 
 </LinearLayout>

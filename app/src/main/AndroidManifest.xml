@@ -1,6 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
+    <!-- 新增：录音权限声明（语音输入必需） -->
+    <uses-permission android:name="android.permission.RECORD_AUDIO" /> <!-- 可选：如果需要网络语音识别（部分手机需要），添加网络权限 -->
+    <uses-permission android:name="android.permission.INTERNET" />
 
     <application
         android:allowBackup="true"
@@ -11,6 +14,15 @@
         android:roundIcon="@mipmap/ic_launcher_round"
         android:supportsRtl="true"
         android:theme="@style/Theme.DictionaryApp">
+        <activity
+            android:name=".DictionaryActivity"
+            android:exported="false" />
+        <activity
+            android:name=".CollectionActivity"
+            android:exported="false" />
+        <activity
+            android:name=".HistoryActivity"
+            android:exported="false" />
         <activity
             android:name=".UserActivity"
             android:exported="false" />

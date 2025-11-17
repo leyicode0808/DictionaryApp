@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F5F7FA"
+    android:orientation="vertical"
+    android:padding="16dp">
+
+    <!-- 顶部标题栏：返回按钮 + 页面标题 -->
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center_vertical"
+        android:layout_marginBottom="16dp">
+
+        <TextView
+            android:id="@+id/tv_back"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="← 返回"
+            android:textSize="18sp"
+            android:textColor="#000000"
+            android:padding="8dp"
+            android:clickable="true"
+            android:focusable="true"/>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="我的收藏(长按移出收藏夹）"
+            android:textSize="20sp"
+            android:textColor="#000000"
+            android:layout_marginStart="20dp"/>
+    </LinearLayout>
+
+    <!-- 排序单选组（时间排序/字母排序） -->
+    <RadioGroup
+        android:id="@+id/rg_sort"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:layout_marginBottom="16dp"
+        android:background="@color/transparent_blue"
+        android:padding="8dp">
+
+    <RadioButton
+        android:id="@+id/rb_time"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="时间排序"
+        android:textSize="16sp"
+        android:textColor="#000000"
+        android:checked="true"
+        android:layout_marginRight="20dp"/>
+
+    <RadioButton
+        android:id="@+id/rb_alphabet"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="字母排序"
+        android:textSize="16sp"
+        android:textColor="#000000"/>
+</RadioGroup>
+
+<androidx.recyclerview.widget.RecyclerView
+    android:id="@+id/rv_collection_list"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/transparent_blue"
+    android:padding="8dp"
+    android:clipToPadding="false"/>
+
+
+<TextView
+    android:id="@+id/tv_empty_hint"
+    android:layout_width="wrap_content"
+    android:layout_height="wrap_content"
+    android:text="暂无收藏单词"
+    android:textSize="16sp"
+    android:textColor="#999999"
+    android:layout_gravity="center"
+    android:visibility="gone"/>
+
+    </LinearLayout>
