@@ -18,35 +18,34 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class WordDatabaseHelper extends SQLiteOpenHelper {
-    // 数据库信息（核心修改1：版本号从2升级到3，触发onUpgrade更新收藏表）
+    // 数据库信息（核心修改1：添加调试开关，开发时true，上线前false）
+    public static boolean DEBUG = true; // 调试模式：保持数据库连接，方便查看
     private static final String DB_NAME = "WordTranslation.db";
-    private static final int DB_VERSION = 3; // 关键升级！
+    private static final int DB_VERSION = 3;
     private static final String SP_NAME = "ImportStatus";
     private static final String KEY_IMPORTED = "isCsvImported";
 
-    // 1. 单词词典表（存储CSV导入的单词和翻译）
+    // 表和字段定义（保持不变）
     public static final String TABLE_WORD_DICT = "word_dict";
     public static final String COL_DICT_ID = "_id";
     public static final String COL_WORD = "word";
     public static final String COL_TRANSLATION = "translation";
 
-    // 2. 翻译历史表
     public static final String TABLE_HISTORY = "translation_history";
     public static final String COL_HISTORY_ID = "_id";
     public static final String COL_HISTORY_WORD = "word";
     public static final String COL_HISTORY_TRANSLATION = "translation";
-    public static final String COL_HISTORY_TIME = "create_time"; // 时间戳
+    public static final String COL_HISTORY_TIME = "create_time";
 
-    // 3. 收藏单词表（核心修改2：新增翻译字段 COL_COLLECT_TRANSLATION）
     public static final String TABLE_COLLECTION = "collected_words";
     public static final String COL_COLLECT_ID = "_id";
     public static final String COL_COLLECT_WORD = "word";
-    public static final String COL_COLLECT_TRANSLATION = "translation"; // 新增：存储翻译
-    public static final String COL_COLLECT_CREATE_TIME = "collect_time"; // 原有：收藏时间戳
+    public static final String COL_COLLECT_TRANSLATION = "translation";
+    public static final String COL_COLLECT_CREATE_TIME = "collect_time";
 
     private final Context mContext;
 
-    // 创建表的SQL语句（核心修改3：收藏表添加翻译字段）
+    // 创建表SQL（保持不变）
     private static final String CREATE_TABLE_DICT = "CREATE TABLE IF NOT EXISTS " + TABLE_WORD_DICT + " (" +
             COL_DICT_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
             COL_WORD + " TEXT UNIQUE NOT NULL, " +
@@ -58,12 +57,11 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             COL_HISTORY_TRANSLATION + " TEXT NOT NULL, " +
             COL_HISTORY_TIME + " INTEGER NOT NULL);";
 
-    // 收藏表SQL修改：新增 COL_COLLECT_TRANSLATION 字段
     private static final String CREATE_TABLE_COLLECTION = "CREATE TABLE IF NOT EXISTS " + TABLE_COLLECTION + " (" +
             COL_COLLECT_ID + " INTEGER PRIMARY KEY AUTOINCREMENT, " +
-            COL_COLLECT_WORD + " TEXT UNIQUE NOT NULL, " + // 单词唯一，避免重复收藏
-            COL_COLLECT_TRANSLATION + " TEXT NOT NULL, " + // 新增：翻译字段（非空）
-            COL_COLLECT_CREATE_TIME + " INTEGER NOT NULL);"; // 原有：收藏时间
+            COL_COLLECT_WORD + " TEXT UNIQUE NOT NULL, " +
+            COL_COLLECT_TRANSLATION + " TEXT NOT NULL, " +
+            COL_COLLECT_CREATE_TIME + " INTEGER NOT NULL);";
 
     public WordDatabaseHelper(Context context) {
         super(context, DB_NAME, null, DB_VERSION);
@@ -72,22 +70,18 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
 
     @Override
     public void onCreate(SQLiteDatabase db) {
-        // 创建3张表（收藏表已包含翻译字段）
         db.execSQL(CREATE_TABLE_DICT);
         db.execSQL(CREATE_TABLE_HISTORY);
         db.execSQL(CREATE_TABLE_COLLECTION);
 
-        // 检查CSV是否已导入，未导入则执行导入
         if (!isCsvImported()) {
             importCsvToDb(db);
-            setCsvImported(true); // 标记为已导入
+            setCsvImported(true);
         }
     }
 
     @Override
     public void onUpgrade(SQLiteDatabase db, int oldVersion, int newVersion) {
-        // 核心修改4：数据库升级逻辑（兼容旧数据）
-        // 1. 旧版本<2：添加收藏时间字段（原有逻辑保留）
         if (oldVersion < 2) {
             String addTimeColumnSql = "ALTER TABLE " + TABLE_COLLECTION +
                     " ADD COLUMN " + COL_COLLECT_CREATE_TIME + " INTEGER NOT NULL DEFAULT " +
@@ -95,9 +89,7 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             db.execSQL(addTimeColumnSql);
             Log.d("DB_UPGRADE", "收藏表成功添加时间字段");
         }
-        // 2. 旧版本<3：添加翻译字段（核心新增）
         if (oldVersion < 3) {
-            // 给旧收藏表新增翻译字段，默认值为空字符串（满足NOT NULL约束）
             String addTranslationColumnSql = "ALTER TABLE " + TABLE_COLLECTION +
                     " ADD COLUMN " + COL_COLLECT_TRANSLATION + " TEXT NOT NULL DEFAULT ''";
             db.execSQL(addTranslationColumnSql);
@@ -105,25 +97,24 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    // 读取CSV文件并导入到word_dict表（无修改，保持原有逻辑）
+    // CSV导入（保持不变）
     private void importCsvToDb(SQLiteDatabase db) {
         db.beginTransaction();
         try {
             BufferedReader br = new BufferedReader(
                     new InputStreamReader(mContext.getAssets().open("word_translation.csv"), "UTF-8"));
             String line;
-            String header = br.readLine(); // 跳过表头
+            String header = br.readLine();
             if (header == null || header.trim().isEmpty()) {
                 Log.w("CSV_IMPORT", "CSV 无表头，可能格式错误");
             }
 
             int count = 0;
-            String csvRegex = "\"([^\"]*?)\"|([^,]+)"; // 适配带引号格式
+            String csvRegex = "\"([^\"]*?)\"|([^,]+)";
             while ((line = br.readLine()) != null) {
                 line = line.trim();
                 if (line.isEmpty()) continue;
 
-                // 正则解析 CSV 字段
                 java.util.regex.Pattern pattern = java.util.regex.Pattern.compile(csvRegex);
                 java.util.regex.Matcher matcher = pattern.matcher(line);
                 List<String> parts = new ArrayList<>();
@@ -161,7 +152,7 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
         }
     }
 
-    // ---------------------- 工具方法：标记CSV是否已导入（无修改） ----------------------
+    // 工具方法：标记CSV导入状态（保持不变）
     private boolean isCsvImported() {
         SharedPreferences sp = mContext.getSharedPreferences(SP_NAME, Context.MODE_PRIVATE);
         return sp.getBoolean(KEY_IMPORTED, false);
@@ -172,14 +163,28 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
         sp.edit().putBoolean(KEY_IMPORTED, imported).apply();
     }
 
-    // ---------------------- 词典表：查询翻译（无修改） ----------------------
+    // ---------------------- 核心修改2：统一数据库连接管理（调试模式不关闭） ----------------------
+    /**
+     * 获取数据库连接（统一处理调试模式）
+     * @param writable 是否需要可写权限（true=getWritableDatabase，false=getReadableDatabase）
+     * @return SQLiteDatabase 连接
+     */
+    private SQLiteDatabase getDatabase(boolean writable) {
+        SQLiteDatabase db = writable ? super.getWritableDatabase() : super.getReadableDatabase();
+        if (DEBUG) {
+            db.setLockingEnabled(false); // 调试模式禁用锁定，避免多线程冲突
+            Log.d("DB_DEBUG", "数据库连接保持打开状态，方便查看");
+        }
+        return db;
+    }
+
+    // ---------------------- 词典表：查询翻译（修改连接获取和关闭逻辑） ----------------------
     public String queryTranslation(String word) {
         if (word.isEmpty()) return null;
         String translation = null;
-        SQLiteDatabase db = getReadableDatabase();
+        SQLiteDatabase db = getDatabase(false); // 改用统一方法获取连接（只读）
         Cursor cursor = null;
         try {
-            // 不区分大小写查询（lower(word) 与传入的小写单词匹配）
             cursor = db.query(
                     TABLE_WORD_DICT,
                     new String[]{COL_TRANSLATION},
@@ -194,35 +199,40 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             e.printStackTrace();
         } finally {
             if (cursor != null) cursor.close();
-            db.close();
+            // 核心修改：调试模式不关闭数据库，非调试模式正常关闭
+            if (!DEBUG) {
+                db.close();
+            }
         }
         return translation;
     }
 
-    // ---------------------- 历史表：增删查（无修改） ----------------------
-    // 添加历史记录
+    // ---------------------- 历史表：增删查（修改连接逻辑） ----------------------
     public long addHistory(String word, String translation) {
-        SQLiteDatabase db = getWritableDatabase();
+        SQLiteDatabase db = getDatabase(true); // 可写连接
         ContentValues values = new ContentValues();
         values.put(COL_HISTORY_WORD, word);
         values.put(COL_HISTORY_TRANSLATION, translation);
-        values.put(COL_HISTORY_TIME, System.currentTimeMillis()); // 当前时间戳
+        values.put(COL_HISTORY_TIME, System.currentTimeMillis());
         long id = db.insert(TABLE_HISTORY, null, values);
-        db.close();
+
+        // 调试模式不关闭
+        if (!DEBUG) {
+            db.close();
+        }
         return id;
     }
 
-    // 查询所有历史记录（按时间倒序：最新的在前面）
     public List<String> queryAllHistory() {
         List<String> historyList = new ArrayList<>();
-        SQLiteDatabase db = getReadableDatabase();
+        SQLiteDatabase db = getDatabase(false);
         Cursor cursor = null;
         try {
             cursor = db.query(
                     TABLE_HISTORY,
                     new String[]{COL_HISTORY_WORD, COL_HISTORY_TRANSLATION},
                     null, null, null, null,
-                    COL_HISTORY_TIME + " DESC" // 按时间倒序
+                    COL_HISTORY_TIME + " DESC"
             );
             while (cursor.moveToNext()) {
                 String word = cursor.getString(cursor.getColumnIndexOrThrow(COL_HISTORY_WORD));
@@ -233,65 +243,67 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             e.printStackTrace();
         } finally {
             if (cursor != null) cursor.close();
-            db.close();
+            if (!DEBUG) {
+                db.close();
+            }
         }
         return historyList;
     }
 
-    // 删除单条历史记录
     public int deleteHistory(String word, String translation) {
-        SQLiteDatabase db = getWritableDatabase();
+        SQLiteDatabase db = getDatabase(true);
         int rows = db.delete(
                 TABLE_HISTORY,
                 COL_HISTORY_WORD + " = ? AND " + COL_HISTORY_TRANSLATION + " = ?",
                 new String[]{word, translation}
         );
-        db.close();
+        if (!DEBUG) {
+            db.close();
+        }
         return rows;
     }
 
-    // ---------------------- 收藏表：增删查（核心修改5：支持单词+翻译） ----------------------
-    // 添加收藏（核心修改：接收单词+翻译，同时存储）
+    // ---------------------- 收藏表：增删查（修改连接逻辑） ----------------------
     public long addCollection(String word, String translation) {
-        // 校验参数（避免空翻译）
         if (word.isEmpty() || translation.isEmpty()) {
             Log.e("COLLECTION", "单词或翻译为空，收藏失败");
             return -1;
         }
 
-        SQLiteDatabase db = getWritableDatabase();
+        SQLiteDatabase db = getDatabase(true);
         ContentValues values = new ContentValues();
-        values.put(COL_COLLECT_WORD, word.toLowerCase()); // 统一小写存储
-        values.put(COL_COLLECT_TRANSLATION, translation); // 存储翻译（核心新增）
-        values.put(COL_COLLECT_CREATE_TIME, System.currentTimeMillis()); // 收藏时间
+        values.put(COL_COLLECT_WORD, word.toLowerCase());
+        values.put(COL_COLLECT_TRANSLATION, translation);
+        values.put(COL_COLLECT_CREATE_TIME, System.currentTimeMillis());
 
-        // 避免重复收藏（单词唯一，冲突时返回-1）
         long id = db.insertWithOnConflict(
                 TABLE_COLLECTION,
                 null,
                 values,
                 SQLiteDatabase.CONFLICT_IGNORE
         );
-        db.close();
+        if (!DEBUG) {
+            db.close();
+        }
         return id;
     }
 
-    // 取消收藏（无修改：按单词删除，翻译随记录一起删除）
     public int removeCollection(String word) {
-        SQLiteDatabase db = getWritableDatabase();
+        SQLiteDatabase db = getDatabase(true);
         int rows = db.delete(
                 TABLE_COLLECTION,
                 COL_COLLECT_WORD + " = ?",
                 new String[]{word.toLowerCase()}
         );
-        db.close();
+        if (!DEBUG) {
+            db.close();
+        }
         return rows;
     }
 
-    // 查询单词是否已收藏（无修改：按单词判断）
     public boolean isCollected(String word) {
         if (word.isEmpty()) return false;
-        SQLiteDatabase db = getReadableDatabase();
+        SQLiteDatabase db = getDatabase(false);
         Cursor cursor = null;
         boolean isCollected = false;
         try {
@@ -302,34 +314,33 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
                     new String[]{word.toLowerCase()},
                     null, null, null
             );
-            isCollected = cursor.moveToFirst(); // 有数据则已收藏
+            isCollected = cursor.moveToFirst();
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (cursor != null) cursor.close();
-            db.close();
+            if (!DEBUG) {
+                db.close();
+            }
         }
         return isCollected;
     }
 
-    // 核心修改6：查询所有收藏（返回WordBean列表，含单词+翻译，支持排序）
     public List<WordBean> queryAllCollections(int sortType) {
         List<WordBean> collectList = new ArrayList<>();
-        SQLiteDatabase db = getReadableDatabase();
+        SQLiteDatabase db = getDatabase(false);
         Cursor cursor = null;
         try {
-            // 排序规则（0=时间倒序，1=字母正序）
             String orderBy;
             if (sortType == 1) {
-                orderBy = COL_COLLECT_WORD + " ASC"; // 字母A-Z正序
+                orderBy = COL_COLLECT_WORD + " ASC";
             } else {
-                orderBy = COL_COLLECT_CREATE_TIME + " DESC"; // 最新收藏在前
+                orderBy = COL_COLLECT_CREATE_TIME + " DESC";
             }
 
-            // 查询：同时获取单词和翻译（核心修改）
             cursor = db.query(
                     TABLE_COLLECTION,
-                    new String[]{COL_COLLECT_WORD, COL_COLLECT_TRANSLATION}, // 查询两个字段
+                    new String[]{COL_COLLECT_WORD, COL_COLLECT_TRANSLATION},
                     null, null, null, null,
                     orderBy
             );
@@ -337,44 +348,42 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             while (cursor.moveToNext()) {
                 String word = cursor.getString(cursor.getColumnIndexOrThrow(COL_COLLECT_WORD));
                 String translation = cursor.getString(cursor.getColumnIndexOrThrow(COL_COLLECT_TRANSLATION));
-                // 封装成WordBean（包含单词+翻译）
                 collectList.add(new WordBean(word, translation));
             }
         } catch (Exception e) {
             e.printStackTrace();
         } finally {
             if (cursor != null) cursor.close();
-            db.close();
+            if (!DEBUG) {
+                db.close();
+            }
         }
         return collectList;
     }
 
-    // 兼容旧代码：无参重载（默认时间排序）
     public List<WordBean> queryAllCollections() {
-        return queryAllCollections(0); // 0=时间倒序（最新收藏在前）
+        return queryAllCollections(0);
     }
 
-    // ---------------------- 词典表：新增方法（用于完整词典功能） ----------------------
-    // 1. 添加陌生单词（完善词典）
+    // ---------------------- 词典表：新增方法（修改连接逻辑） ----------------------
     public long addWord(String word, String translation) {
         if (word.isEmpty() || translation.isEmpty()) return -1;
-        SQLiteDatabase db = getWritableDatabase();
+        SQLiteDatabase db = getDatabase(true);
         ContentValues values = new ContentValues();
-        values.put(COL_WORD, word.toLowerCase()); // 统一小写存储
+        values.put(COL_WORD, word.toLowerCase());
         values.put(COL_TRANSLATION, translation);
-        // 避免重复添加（word字段是UNIQUE）
         long id = db.insertWithOnConflict(TABLE_WORD_DICT, null, values, SQLiteDatabase.CONFLICT_IGNORE);
-        db.close();
+        if (!DEBUG) {
+            db.close();
+        }
         return id;
     }
 
-    // 2. 查询所有单词（按字母A-Z正序排序，用于词典列表）
     public List<WordBean> queryAllWords() {
         List<WordBean> wordList = new ArrayList<>();
-        SQLiteDatabase db = getReadableDatabase();
+        SQLiteDatabase db = getDatabase(false);
         Cursor cursor = null;
         try {
-            // 按单词字母正序排序
             cursor = db.query(
                     TABLE_WORD_DICT,
                     new String[]{COL_WORD, COL_TRANSLATION},
@@ -390,20 +399,20 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             e.printStackTrace();
         } finally {
             if (cursor != null) cursor.close();
-            db.close();
+            if (!DEBUG) {
+                db.close();
+            }
         }
         return wordList;
     }
 
-    // 3. 模糊查询单词（支持输入关键词匹配，不区分大小写）
     public List<WordBean> queryWordsByKeyword(String keyword) {
         List<WordBean> wordList = new ArrayList<>();
         if (keyword.isEmpty()) return wordList;
-        SQLiteDatabase db = getReadableDatabase();
+        SQLiteDatabase db = getDatabase(false);
         Cursor cursor = null;
         try {
             String lowerKeyword = keyword.toLowerCase();
-            // 模糊查询：匹配单词中包含关键词的记录（%表示任意字符）
             String selection = COL_WORD + " LIKE ?";
             String[] selectionArgs = new String[]{"%" + lowerKeyword + "%"};
 
@@ -422,12 +431,14 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             e.printStackTrace();
         } finally {
             if (cursor != null) cursor.close();
-            db.close();
+            if (!DEBUG) {
+                db.close();
+            }
         }
         return wordList;
     }
 
-    // 辅助实体类：存储单词和翻译（内部类，无需修改）
+    // 辅助实体类（保持不变）
     public static class WordBean {
         private String word;
         private String translation;
@@ -437,7 +448,6 @@ public class WordDatabaseHelper extends SQLiteOpenHelper {
             this.translation = translation;
         }
 
-        // getter（供前端获取数据）
         public String getWord() { return word; }
         public String getTranslation() { return translation; }
     }
