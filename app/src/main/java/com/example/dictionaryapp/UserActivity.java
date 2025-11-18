@@ -1,12 +1,10 @@
 package com.example.dictionaryapp;
 
-import android.Manifest;
 import android.content.ClipData;
 import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
-import android.content.pm.PackageManager;
 import android.database.Cursor;
 import android.database.sqlite.SQLiteDatabase;
 import android.database.sqlite.SQLiteOpenHelper;
@@ -15,9 +13,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.speech.RecognitionListener;
-import android.speech.RecognizerIntent;
-import android.speech.SpeechRecognizer;
 import android.speech.tts.TextToSpeech;
 import android.util.Log;
 import android.view.View;
@@ -30,8 +25,6 @@ import android.widget.Toast;
 import androidx.activity.EdgeToEdge;
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
-import androidx.core.app.ActivityCompat;
-import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -42,29 +35,25 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 
-import com.example.dictionaryapp.WordDatabaseHelper;
+// 已删除：语音相关导入（RecognitionListener、RecognizerIntent、SpeechRecognizer、Manifest.permission）
 
 public class UserActivity extends AppCompatActivity implements View.OnClickListener {
-    // 历史记录页面请求码（用于接收返回结果）
+    // 历史记录/收藏页面请求码（保留）
     private static final int REQUEST_HISTORY = 1002;
-    // 收藏页面请求码
     private static final int REQUEST_COLLECTION = 1003;
-    // 控件声明
+
+    // 控件声明（已删除：语音按钮相关控件）
     private EditText etInputWord;
     private TextView tvTranslationResult;
     private ImageView ivCollectStatus;
     private RecyclerView rvHistory;
 
-    // 核心工具/数据
+    // 核心工具/数据（已删除：SpeechRecognizer 成员变量、语音权限请求码）
     private TextToSpeech textToSpeech;
-    private SpeechRecognizer speechRecognizer;
     private WordDatabaseHelper dbHelper;
     private HistoryAdapter historyAdapter;
     private boolean isCollected = false;
     private String currentWord = "";
-
-    // 权限请求码
-    private static final int REQUEST_RECORD_AUDIO = 1001;
     private final Handler mainHandler = new Handler(Looper.getMainLooper());
 
     @Override
@@ -75,19 +64,20 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
 
         dbHelper = new WordDatabaseHelper(this);
         initViews();
-        initTTS();
-        initSpeechRecognizer();
+        initTTS(); // 保留文本朗读（TTS）功能（若需删除可一并移除）
         initRecyclerView();
+
+        // 已删除：initSpeechRecognizer() 语音初始化调用
     }
 
-    // 初始化控件+绑定点击事件（核心修改1：删除btn_save_history绑定）
+    // 初始化控件+绑定点击事件（无语音按钮相关绑定）
     private void initViews() {
         etInputWord = findViewById(R.id.et_input_word);
         tvTranslationResult = findViewById(R.id.tv_translation_result);
         ivCollectStatus = findViewById(R.id.iv_collect_status);
         rvHistory = findViewById(R.id.rv_history);
 
-
+        // 绑定核心功能按钮（已删除：语音输入按钮的点击绑定）
         findViewById(R.id.btn_clear).setOnClickListener(this);
         findViewById(R.id.btn_copy_result).setOnClickListener(this);
         findViewById(R.id.btn_voice_read).setOnClickListener(this);
@@ -101,7 +91,7 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         ivCollectStatus.setOnClickListener(v -> toggleCollect());
     }
 
-    // 初始化文本朗读（TTS）- 保持不变
+    // 初始化文本朗读（TTS）- 保留（若需删除，直接移除该方法+相关调用+onDestroy释放）
     private void initTTS() {
         textToSpeech = new TextToSpeech(this, status -> {
             if (status == TextToSpeech.SUCCESS) {
@@ -113,106 +103,9 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         });
     }
 
-    // 初始化语音输入 - 保持不变
-    // 初始化语音输入 - 修复设备兼容、空指针问题
-    // 初始化语音输入 - 修复设备兼容、空指针问题
-    private void initSpeechRecognizer() {
-        // 1. 先检查麦克风权限
-        if (ContextCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO)
-                != PackageManager.PERMISSION_GRANTED) {
-            // 未授权，请求权限（后续通过onRequestPermissionsResult回调处理）
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    REQUEST_RECORD_AUDIO
-            );
-            return;
-        }
+    // 已删除：完整的 initSpeechRecognizer() 语音初始化方法
 
-        // 2. 关键：判断设备是否支持语音识别（核心解决“服务繁忙”的原因之一）
-        if (!SpeechRecognizer.isRecognitionAvailable(this)) {
-            Toast.makeText(this, "当前设备不支持语音识别", Toast.LENGTH_SHORT).show();
-            speechRecognizer = null; // 标记为null，避免后续调用崩溃
-            return;
-        }
-
-        // 3. 安全初始化SpeechRecognizer（主线程执行，避免异常）
-        try {
-            speechRecognizer = SpeechRecognizer.createSpeechRecognizer(this);
-            speechRecognizer.setRecognitionListener(new RecognitionListener() {
-                @Override
-                public void onResults(Bundle results) {
-                    // 识别成功：获取结果并填充到输入框
-                    List<String> matches = results.getStringArrayList(SpeechRecognizer.RESULTS_RECOGNITION);
-                    if (matches != null && !matches.isEmpty()) {
-                        etInputWord.setText(matches.get(0));
-                        // 可选：自动触发翻译（提升体验）
-                        // translateWord();
-                    } else {
-                        Toast.makeText(UserActivity.this, "未识别到有效内容", Toast.LENGTH_SHORT).show();
-                    }
-                }
-
-                @Override
-                public void onError(int error) {
-                    // 替换为传统switch语句（Java 11支持）
-                    String errorMsg;
-                    switch (error) {
-                        case SpeechRecognizer.ERROR_AUDIO:
-                            errorMsg = "音频录制失败，请检查麦克风是否被占用";
-                            break;
-                        case SpeechRecognizer.ERROR_NO_MATCH:
-                            errorMsg = "未识别到语音，请靠近麦克风清晰说话";
-                            break;
-                        case SpeechRecognizer.ERROR_RECOGNIZER_BUSY:
-                            errorMsg = "识别服务繁忙，请稍后再试（可重启APP）";
-                            break;
-                        case SpeechRecognizer.ERROR_NETWORK:
-                            errorMsg = "网络错误，请检查网络连接（在线识别需要联网）";
-                            break;
-                        case SpeechRecognizer.ERROR_NETWORK_TIMEOUT:
-                            errorMsg = "网络超时，请切换网络重试";
-                            break;
-                        case SpeechRecognizer.ERROR_INSUFFICIENT_PERMISSIONS:
-                            errorMsg = "缺少麦克风权限，请在设置中开启";
-                            break;
-                        case SpeechRecognizer.ERROR_SPEECH_TIMEOUT:
-                            errorMsg = "未检测到语音输入，请重新说话";
-                            break;
-                        case SpeechRecognizer.ERROR_SERVER:
-                            errorMsg = "识别服务器错误，请稍后再试";
-                            break;
-                        case SpeechRecognizer.ERROR_CLIENT:
-                            errorMsg = "客户端错误，请重启APP";
-                            break;
-                        default:
-                            errorMsg = "语音识别失败（错误码：" + error + "）";
-                            break;
-                    }
-                    Toast.makeText(UserActivity.this, errorMsg, Toast.LENGTH_SHORT).show();
-                }
-
-                // 以下方法保持不变（无需修改）
-                @Override public void onReadyForSpeech(Bundle params) {
-                    Toast.makeText(UserActivity.this, "准备就绪，请说话...", Toast.LENGTH_SHORT).show();
-                }
-                @Override public void onBeginningOfSpeech() {}
-                @Override public void onRmsChanged(float rmsdB) {}
-                @Override public void onBufferReceived(byte[] buffer) {}
-                @Override public void onEndOfSpeech() {
-                    Toast.makeText(UserActivity.this, "正在识别...", Toast.LENGTH_SHORT).show();
-                }
-                @Override public void onPartialResults(Bundle partialResults) {}
-                @Override public void onEvent(int eventType, Bundle params) {}
-            });
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "语音识别初始化失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
-            speechRecognizer = null;
-        }
-    }
-
-    // 初始化RecyclerView - 保持不变
+    // 初始化RecyclerView（历史记录）- 保留
     private void initRecyclerView() {
         try {
             List<String> emptyList = new ArrayList<>();
@@ -231,7 +124,7 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    // ---------------------- 核心修改2：翻译成功自动保存历史 ----------------------
+    // 翻译核心逻辑（自动保存历史）- 保留
     private void translateWord() {
         String tempCurrentWord = etInputWord.getText().toString().trim();
         final String finalCurrentWord = tempCurrentWord;
@@ -262,8 +155,7 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
                     if (finalTranslation != null) {
                         tvTranslationResult.setText(finalTranslation);
                         checkCollectionStatus(finalCurrentWord);
-                        // 翻译成功 → 自动保存历史（核心新增）
-                        autoSaveHistory();
+                        autoSaveHistory(); // 自动保存历史
                     } else {
                         tvTranslationResult.setText("未找到该单词的翻译");
                         isCollected = false;
@@ -278,32 +170,24 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         }).start();
     }
 
-    // ---------------------- 核心修改3：自动保存历史（复用原有校验逻辑） ----------------------
-    // 复用原saveHistory的校验和数据库操作，去掉手动保存的提示
+    // 自动保存历史 - 保留
     private void autoSaveHistory() {
         String result = tvTranslationResult.getText().toString();
-        // 原有校验逻辑：无单词/无有效结果不保存
         if (currentWord.isEmpty()
                 || result.equals("翻译结果将显示在这里")
                 || result.equals("未找到该单词的翻译")) {
-            return; // 自动保存不提示，直接返回
+            return;
         }
 
-        // 子线程插入数据库（和原逻辑一致）
         new Thread(() -> {
             long id = dbHelper.addHistory(currentWord, result);
             mainHandler.post(() -> {
-                if (id != -1) {
-                    // 自动保存成功后不弹窗提示（避免打扰）
-                    // 如需提示，取消下面注释：
-                    // Toast.makeText(this, "历史记录已自动保存", Toast.LENGTH_SHORT).show();
-                }
-                // 无需主动刷新列表，用户点击「历史记录」时会自动刷新
+                // 自动保存不弹窗，避免打扰
             });
         }).start();
     }
 
-    // 从数据库查询翻译（供历史记录点击使用）- 保持不变
+    // 从数据库查询翻译（供历史记录点击使用）- 保留
     private void queryTranslationFromDb(String word) {
         final String finalWord = word;
         new Thread(() -> {
@@ -333,7 +217,7 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         }).start();
     }
 
-    // 检查单词是否已收藏 - 保持不变
+    // 检查收藏状态 - 保留
     private void checkCollectionStatus(String word) {
         final String finalWord = word;
         if (finalWord.isEmpty()) return;
@@ -357,13 +241,12 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         }).start();
     }
 
-    // 切换收藏状态 - 保持不变
+    // 切换收藏状态 - 保留
     private void toggleCollect() {
         if (currentWord.isEmpty()) {
             Toast.makeText(this, "请先输入并翻译单词", Toast.LENGTH_SHORT).show();
             return;
         }
-        // 获取当前翻译结果
         String currentTranslation = tvTranslationResult.getText().toString().trim();
         if (currentTranslation.equals("翻译结果将显示在这里") || currentTranslation.equals("未找到该单词的翻译")) {
             Toast.makeText(this, "无有效翻译，无法收藏", Toast.LENGTH_SHORT).show();
@@ -372,7 +255,6 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
 
         new Thread(() -> {
             if (isCollected) {
-                // 取消收藏（按单词删除，无需翻译）
                 int rows = dbHelper.removeCollection(currentWord);
                 mainHandler.post(() -> {
                     if (rows > 0) {
@@ -382,7 +264,6 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
                     }
                 });
             } else {
-                // 新增收藏（传入单词+翻译，调用修改后的addCollection）
                 long id = dbHelper.addCollection(currentWord, currentTranslation);
                 mainHandler.post(() -> {
                     if (id != -1) {
@@ -397,7 +278,7 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         }).start();
     }
 
-    // 刷新历史列表 - 保持不变
+    // 刷新历史列表 - 保留
     private void refreshHistoryList() {
         new Thread(() -> {
             List<String> newHistoryList = dbHelper.queryAllHistory();
@@ -436,70 +317,19 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         }).start();
     }
 
-    // 查看所有收藏单词 - 保持不变
+    // 查看收藏单词 - 保留（跳转页面，不再弹窗）
     private void viewCollection() {
-        new Thread(() -> {
-            // 调用修改后的方法，获取含翻译的收藏列表
-            List<WordDatabaseHelper.WordBean> collectList = dbHelper.queryAllCollections();
-            mainHandler.post(() -> {
-                if (collectList.isEmpty()) {
-                    Toast.makeText(this, "暂无收藏单词", Toast.LENGTH_SHORT).show();
-                    return;
-                }
-                StringBuilder sb = new StringBuilder("收藏单词：\n");
-                for (WordDatabaseHelper.WordBean bean : collectList) {
-                    sb.append(bean.getWord())
-                            .append(" → ")
-                            .append(bean.getTranslation())
-                            .append("\n");
-                }
-                Toast.makeText(this, sb.toString(), Toast.LENGTH_LONG).show();
-            });
-        }).start();
+        Intent intent = new Intent(UserActivity.this, CollectionActivity.class);
+        startActivityForResult(intent, REQUEST_COLLECTION);
     }
 
-    // 查看完整词典 - 保持不变
+    // 查看完整词典 - 保留
     private void viewDictionary() {
-        Toast.makeText(this, "后续可跳转完整词典页面", Toast.LENGTH_SHORT).show();
+        Intent intent = new Intent(UserActivity.this, DictionaryActivity.class);
+        startActivity(intent);
     }
 
-    // ---------------------- 辅助功能（均保持不变） ----------------------
-    // 启动语音输入 - 修复空指针、优化异常处理
-    private void startVoiceInput() {
-        // 1. 检查SpeechRecognizer是否初始化成功（避免空指针）
-        if (speechRecognizer == null) {
-            Toast.makeText(this, "语音输入未初始化（请先授予麦克风权限）", Toast.LENGTH_SHORT).show();
-            // 自动触发权限请求（提升体验）
-            ActivityCompat.requestPermissions(
-                    this,
-                    new String[]{Manifest.permission.RECORD_AUDIO},
-                    REQUEST_RECORD_AUDIO
-            );
-            return;
-        }
-
-        // 2. 配置语音识别参数（优化识别准确率）
-        Intent intent = new Intent(RecognizerIntent.ACTION_RECOGNIZE_SPEECH);
-        // 语言模型：自由格式（适合单词识别）
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE_MODEL, RecognizerIntent.LANGUAGE_MODEL_FREE_FORM);
-        // 语言：中文（适配中文语音，若需识别英文可改为Locale.US）
-        intent.putExtra(RecognizerIntent.EXTRA_LANGUAGE, Locale.CHINA.toString());
-        // 提示文字（引导用户）
-        intent.putExtra(RecognizerIntent.EXTRA_PROMPT, "请说出要翻译的单词（英文/中文均可）");
-        // 最多返回1个结果（减少冗余）
-        intent.putExtra(RecognizerIntent.EXTRA_MAX_RESULTS, 1);
-        // 禁止部分结果（提升识别稳定性）
-        intent.putExtra(RecognizerIntent.EXTRA_PARTIAL_RESULTS, false);
-
-        // 3. 安全启动识别（捕获所有异常）
-        try {
-            speechRecognizer.startListening(intent);
-        } catch (Exception e) {
-            e.printStackTrace();
-            Toast.makeText(this, "语音输入启动失败：" + e.getMessage(), Toast.LENGTH_SHORT).show();
-        }
-    }
-
+    // 辅助功能（均保留，无语音相关）
     private void clearInputAndResult() {
         etInputWord.setText("");
         tvTranslationResult.setText("翻译结果将显示在这里");
@@ -549,25 +379,14 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
         }
     }
 
-    // ---------------------- 权限请求回调 - 保持不变 ----------------------
-    // 权限请求回调 - 修复授权后未重新初始化的问题
+    // 已删除：语音权限请求回调 onRequestPermissionsResult（仅保留父类调用，无语音相关处理）
     @Override
     public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions, @NonNull int[] grantResults) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode == REQUEST_RECORD_AUDIO) {
-            if (grantResults.length > 0 && grantResults[0] == PackageManager.PERMISSION_GRANTED) {
-                // 权限授予成功：重新初始化语音识别（关键！之前可能漏了这步）
-                initSpeechRecognizer();
-                Toast.makeText(this, "麦克风权限已授予，可使用语音输入", Toast.LENGTH_SHORT).show();
-            } else {
-                // 权限拒绝：明确提示用户（避免用户不知道原因）
-                Toast.makeText(this, "拒绝麦克风权限将无法使用语音输入，可在「设置-应用-权限」中开启", Toast.LENGTH_LONG).show();
-                speechRecognizer = null; // 标记为null，避免后续调用崩溃
-            }
-        }
+        // 无任何语音权限相关处理逻辑
     }
 
-    // ---------------------- 生命周期：释放资源 - 保持不变 ----------------------
+    // 生命周期：释放资源（已删除：SpeechRecognizer 释放代码）
     @Override
     protected void onDestroy() {
         super.onDestroy();
@@ -575,15 +394,12 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
             textToSpeech.stop();
             textToSpeech.shutdown();
         }
-        if (speechRecognizer != null) {
-            speechRecognizer.destroy();
-        }
         if (dbHelper != null) {
             dbHelper.close();
         }
     }
 
-    // ---------------------- 历史记录RecyclerView适配器 - 保持不变 ----------------------
+    // 历史记录RecyclerView适配器 - 保留
     static class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.HistoryViewHolder> {
         private List<String> historyList;
         private OnItemClickListener onClickListener;
@@ -633,49 +449,55 @@ public class UserActivity extends AppCompatActivity implements View.OnClickListe
             }
         }
     }
-    // 接收HistoryActivity返回的结果（选中的单词）
+
+    // 接收HistoryActivity/CollectionActivity返回结果 - 保留
     @Override
     protected void onActivityResult(int requestCode, int resultCode, Intent data) {
         super.onActivityResult(requestCode, resultCode, data);
         if (requestCode == REQUEST_HISTORY && resultCode == RESULT_OK) {
             if (data != null) {
-                // 获取选中的单词
                 String selectedWord = data.getStringExtra("selected_word");
                 if (selectedWord != null && !selectedWord.isEmpty()) {
-                    // 自动填充到输入框，并触发翻译
                     etInputWord.setText(selectedWord);
-                    translateWord(); // 调用现有翻译方法，自动查询
+                    translateWord();
+                }
+            }
+        } else if (requestCode == REQUEST_COLLECTION && resultCode == RESULT_OK) {
+            // 接收收藏页面返回的单词+翻译（优化体验）
+            if (data != null) {
+                String selectedWord = data.getStringExtra("selected_word");
+                String selectedTranslation = data.getStringExtra("selected_translation");
+                if (selectedWord != null && !selectedWord.isEmpty()) {
+                    etInputWord.setText(selectedWord);
+                    currentWord = selectedWord;
+                    tvTranslationResult.setText(selectedTranslation != null ? selectedTranslation : "未找到翻译");
+                    checkCollectionStatus(selectedWord);
                 }
             }
         }
     }
 
-    // ---------------------- 按钮点击事件统一处理（核心修改4：删除btn_save_history分支） ----------------------
+    // 按钮点击事件统一处理（无语音输入按钮分支）
     @Override
     public void onClick(View v) {
         int id = v.getId();
-         if (id == R.id.btn_clear) {
+        if (id == R.id.btn_clear) {
             clearInputAndResult();
         } else if (id == R.id.btn_copy_result) {
             copyResult();
         } else if (id == R.id.btn_voice_read) {
-            readResult();
+            readResult(); // 文本朗读（TTS），若需删除可移除该分支
         } else if (id == R.id.btn_translate) {
             translateWord();
         } else if (id == R.id.btn_collect_word) {
             toggleCollect();
         } else if (id == R.id.btn_show_history) {
-            // 启动历史记录页面，并用startActivityForResult接收返回结果
             Intent intent = new Intent(UserActivity.this, HistoryActivity.class);
             startActivityForResult(intent, REQUEST_HISTORY);
         } else if (id == R.id.btn_view_collection) {
-            // 启动收藏夹页面，接收返回结果
-            Intent intent = new Intent(UserActivity.this, CollectionActivity.class);
-            startActivityForResult(intent, REQUEST_COLLECTION);
-        }else if (id == R.id.btn_view_dict) {
-            // 启动完整词典页面
-            Intent intent = new Intent(UserActivity.this, DictionaryActivity.class);
-            startActivity(intent);
+            viewCollection();
+        } else if (id == R.id.btn_view_dict) {
+            viewDictionary();
         } else if (id == R.id.btn_back_to_main) {
             finish();
         }
