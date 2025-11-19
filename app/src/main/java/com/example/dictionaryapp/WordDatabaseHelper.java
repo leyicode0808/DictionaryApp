@@ -19,7 +19,7 @@ import java.util.List;
 
 public class WordDatabaseHelper extends SQLiteOpenHelper {
     // 数据库信息（核心修改1：添加调试开关，开发时true，上线前false）
-    public static boolean DEBUG = true; // 调试模式：保持数据库连接，方便查看
+    public static boolean DEBUG = false; // 调试模式：保持数据库连接，方便查看
     private static final String DB_NAME = "WordTranslation.db";
     private static final int DB_VERSION = 3;
     private static final String SP_NAME = "ImportStatus";
